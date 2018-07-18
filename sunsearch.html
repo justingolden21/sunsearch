@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+<head>
+<title>SunSearch</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://rawgit.com/moment/moment/2.2.1/min/moment.min.js"></script>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+<link href="https://use.fontawesome.com/releases/v5.0.4/css/all.css" rel="stylesheet">
+
+<style>
+* {
+	text-align: center !important;
+}
+ .input-group {
+ 	margin: 20px;
+ }
+ #infoP {
+ 	font-size: 150%;
+ } h3, b {
+ 	/* bootstrap info color */
+ 	color: #17a2b8 !important;
+ }
+ ::-moz-selection {
+	background: #17a2b8;
+	color: #fff;
+}
+::selection {
+	background: #17a2b8;
+	color: #fff;
+}
+</style>
+</head>
+<body>
+
+<h3><i class='far fa-sun'></i> SunSearch <i class='fas fa-sun'></i></h3>
+<h5>Get sunrise and sunset times of any city, instantly</h5>
+
+<div class="input-group">
+	<input autofocus id="locationSearch" class="form-control" placeholder="enter a location..." type="text" spellcheck="false">
+	<div class="input-group-btn">
+		<button class="btn btn-primary" type="submit">
+			<i class='fas fa-search'></i>
+		</button>
+	</div>
+</div>
+
+<p id="infoP"></p>
+
+<script>
+// https://developer.yahoo.com/weather/
+let callbackFunction = function(data) {
+	console.log(data);
+
+	if(data.query.results == null) {
+		document.getElementById("infoP").innerHTML = "Error finding location";
+		return;
+	}
+
+	let ch = data.query.results.channel;
+	let sunrise = ch.astronomy.sunrise;
+	let sunset = ch.astronomy.sunset;
+	let location = ch.location.city + ", " + ch.location.region + ", " + ch.location.country;
+
+	sunrise = padZero(sunrise);
+	sunset = padZero(sunset);
+
+	let now = new Date();
+	let curTime = now.getHours()%12 + ":" + now.getMinutes() + (now.getHours() < 12 ? " am" : " pm");
+	curTime = padZero(curTime);
+
+	let timeUntilSunrise = getTimeDifference(curTime, sunrise);
+	let timeUntilSunset = getTimeDifference(curTime, sunset);
+
+	document.getElementById("infoP").innerHTML = "<i class='far fa-compass'></i> Location: <b>" + location + "</b><br><i class='far fa-sun'></i> Sunrise: <b>" + sunrise + "</b><br><i class='fas fa-sun'></i> Sunset: <b>" + sunset
+		+ "</b><br><br><i class='fas fa-stopwatch'></i> Your Current Time: <b>" + curTime + "</b><br><i class='far fa-clock'></i> Time Unitl Sunrise: <b>" + timeUntilSunrise + "</b><br><i class='fas fa-clock'></i> Time Until Sunset: <b>" + timeUntilSunset + "</b>";
+};
+
+// https://stackoverflow.com/questions/34247283/how-to-subtract-2-times-with-moment-js-then-subtract-some-minutes/34255728#34255728
+function getTimeDifference(startTime, endTime) {
+	let start = moment.utc(startTime, "hh:mm a");
+	let end = moment.utc(endTime, "hh:mm a");
+
+	if(end.isBefore(start) ) //account for  past midnight
+		end.add(1, 'day');
+
+	let dur = moment.duration(end.diff(start) ); //calc duration
+	return moment.utc(+dur).format('H:mm'); //formatted string
+}
+
+function addScript(src) {
+	let script = document.createElement("script");
+	script.setAttribute("src", src);
+	document.body.appendChild(script);
+}
+
+// https://stackoverflow.com/questions/42798592/yahoo-weather-api-returns-time-with-missing-digit-for-sunset-sunrise
+function padZero(str) {
+	if (/^\d{1,2}\:\d{1}\s/.test(str) )	{
+		let value = /^\d{1,2}(\:\d)\s/.exec(str)[1];
+		str = str.replace(value, ':0' + value.substr(1) );
+	}
+	return str;
+}
+
+window.onload = function() {
+	document.getElementById("locationSearch").onchange = function() {
+		//get astronomy for sunrise, sunset, and location for location
+		addScript("https://query.yahooapis.com/v1/public/yql?q=select astronomy, location from weather.forecast where woeid in (select woeid from geo.places(1) where text='" + this.value + "')&format=json&callback=callbackFunction");
+	}
+}
+</script>
+</body>
+</html>
